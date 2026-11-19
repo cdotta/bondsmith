@@ -1,5 +1,7 @@
 # Bondsmith
 
+![A smith at an anvil binding glowing threads from five terminal windows into one knot](docs/banner.jpg)
+
 **Projects, for Claude Code in your terminal.**
 
 Projects in the Claude apps give a body of work one home: shared files, instructions and many conversations. Bondsmith gives Claude Code the same thing, across every repo you work in. You talk to one orchestrator session in a home repo. It writes a brief for each task, starts a worker session in a git worktree of the right repo, has a checker re-verify the result, and tells you when there is a PR to merge.
@@ -17,7 +19,7 @@ flowchart LR
 ```
 
 - **One place to talk to.** The orchestrator routes each task to the right repo, so you stop juggling a terminal per repo.
-- **Nothing is done until it is checked.** A checker subagent re-runs every "Done when" item and review step itself; a worker saying "done" is not evidence. Only the orchestrator marks a task `validated`, and you merge.
+- **Nothing is done until it is checked.** A checker subagent re-checks every "Done when" item and review step itself; a worker saying "done" is not evidence. Only the orchestrator marks a task `validated`, and you merge.
 - **It survives a restart.** All state lives in Markdown files in the home repo: the board, and each task's brief, report and check. A new orchestrator can take over any day from the files alone.
 
 Status: v0.1, an ongoing effort in early use, and it will change as I learn from running it. It relies on Claude Code's background sessions, which are a research preview. Issues, ideas and stories of how you run it are welcome in [GitHub issues](https://github.com/cdotta/bondsmith/issues).
