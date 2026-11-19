@@ -1,8 +1,28 @@
 # Bondsmith
 
-Bondsmith is a Claude Code plugin that runs one long-lived orchestrator session in a "home" repo and hands each task to a worker session in a git worktree of the right target repo. A checker subagent re-verifies every finished task against its brief before the orchestrator marks it `validated`, and only the orchestrator sets that mark. You merge. All state lives in Markdown files in the home repo, so a new orchestrator can take over any day from the files alone.
+![A smith at an anvil binding glowing threads from five terminal windows into one knot](docs/banner.jpg)
 
-Status: v0.1, in early use. It relies on Claude Code's background sessions, which are a research preview.
+**Projects, for Claude Code in your terminal.**
+
+Projects in the Claude apps give a body of work one home: shared files, instructions and many conversations. Bondsmith gives Claude Code the same thing, across every repo you work in. You talk to one orchestrator session in a home repo. It writes a brief for each task, starts a worker session in a git worktree of the right repo, has a checker re-verify the result, and tells you when there is a PR to merge.
+
+```mermaid
+flowchart LR
+    you([You]) <--> orch["Orchestrator<br/>in your home repo"]
+    orch -- brief --> w1["Worker<br/>api worktree"]
+    orch -- brief --> w2["Worker<br/>web worktree"]
+    w1 -- report --> orch
+    w2 -- report --> orch
+    orch -- "re-verify" --> chk["Checker<br/>read-only subagent"]
+    chk -- "pass / fail" --> orch
+    orch -- validated --> pr[("PR<br/>you merge")]
+```
+
+- **One place to talk to.** The orchestrator routes each task to the right repo, so you stop juggling a terminal per repo.
+- **Nothing is done until it is checked.** A checker subagent re-checks every "Done when" item and review step itself; a worker saying "done" is not evidence. Only the orchestrator marks a task `validated`, and you merge.
+- **It survives a restart.** All state lives in Markdown files in the home repo: the board, and each task's brief, report and check. A new orchestrator can take over any day from the files alone.
+
+Status: v0.1, an ongoing effort in early use, and it will change as I learn from running it. It relies on Claude Code's background sessions, which are a research preview. Issues, ideas and stories of how you run it are welcome in [GitHub issues](https://github.com/cdotta/bondsmith/issues).
 
 ## Install
 
@@ -71,6 +91,11 @@ Each task is a long worker session plus a checker run per round, on the configur
 ## Development
 
 `bash tests/static.sh` checks the plugin's structure and runs in seconds. `tests/setup.sh`, `tests/check.sh` and `tests/e2e.sh` drive real Claude sessions and cost tokens; `e2e.sh` needs this repo trusted and takes several minutes. The design, and the probe results it rests on, are in [docs/spec.md](docs/spec.md).
+
+## Inspiration
+
+- [The Home Repo Pattern](https://aihero.dev/the-home-repo-pattern), by Matt Pocock on AI Hero: one repo that holds your skills, instructions and shared docs, launches every agent session, and points at all your other repos. Bondsmith's home repo is that repo, plus a board and an orchestrator.
+- [Rethinking Claude Code Best Practices](https://www.youtube.com/watch?v=vlfCjWuv4es&t=8s), a talk by Lydia Hallie (Anthropic) at AI Engineer.
 
 ## License
 
