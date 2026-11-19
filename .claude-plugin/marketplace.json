@@ -1,0 +1,12 @@
+{
+  "name": "bondsmith",
+  "description": "Marketplace for the Bondsmith plugin.",
+  "owner": { "name": "cdotta", "url": "https://github.com/cdotta" },
+  "plugins": [
+    {
+      "name": "bondsmith",
+      "source": "./",
+      "description": "An orchestrator session that runs worker sessions across repositories, checks their output and owns the completion mark."
+    }
+  ]
+}

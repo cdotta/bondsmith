@@ -1,0 +1,78 @@
+#!/bin/sh
+# Starts the Bondsmith orchestrator. Written by /bondsmith:setup; reads
+# orchestrator/config.md at every start, so config edits apply next time.
+# Usage: sh orchestrator/start [new task text]
+cd "$(dirname "$0")/.." || exit 1
+home=$(pwd -P)
+plugin_dir='<plugin root>'
+task="$*"
+set -f
+
+# rows <heading>: the table under "## <heading>", header first, cells tab-separated
+rows() {
+  awk -v h="## $1" '
+    $0 == h { on = 1; next }
+    on && /^## / { exit }
+    on && /^\|/ && $0 !~ /^\|[ :|-]*$/ {
+      sub(/^\| */, ""); sub(/ *\| *$/, ""); gsub(/ *\| */, "\t"); print
+    }' orchestrator/config.md
+}
+# col <heading> <column>: that column of every row of the table
+col() {
+  rows "$1" | awk -F '\t' -v c="$2" '
+    NR == 1 { for (i = 1; i <= NF; i++) if ($i == c) n = i; next }
+    n { print $n }'
+}
+warned=
+warn() { echo "bondsmith: $*" >&2; warned=1; }
+
+model=$(col Workers 'orchestrator model')
+name=$(col Workers 'orchestrator name')
+extra=$(col Workers 'extra settings')
+set -- --model "${model:-fable}" --name "${name:-bondsmith}" --autocompact 200000 \
+  --permission-mode acceptEdits
+[ -n "$plugin_dir" ] && set -- "$@" --plugin-dir "$plugin_dir"
+[ -n "$extra" ] && [ "$extra" != "(none)" ] && set -- "$@" --settings "$extra"
+
+# Repo paths, absolute and without symlinks, so they match the orchestrator's
+# git -C commands. Workers cannot start in an untrusted repo; trust is Claude
+# Code's internal state in ~/.claude.json, so without jq the check is skipped.
+nl='
+'
+repos=
+IFS=$nl
+for p in $(col Repos path); do
+  unset IFS
+  a=$(cd "$home" && cd "$p" 2>/dev/null && pwd -P) || { warn "Repos path $p does not exist; skipped."; continue; }
+  [ "$a" = "$home" ] || set -- "$@" --add-dir "$a"
+  if command -v jq >/dev/null 2>&1 && [ -f "$HOME/.claude.json" ]; then
+    # Prints "trusted", else the nearest trusted parent folder, else nothing.
+    t=$(jq -r --arg d "$a" '.projects as $p | if $p[$d].hasTrustDialogAccepted == true then "trusted"
+      else ($d | split("/")) as $s | [range(2; $s | length) | $s[:.] | join("/")
+        | select($p[.].hasTrustDialogAccepted == true)] | last // "" end' "$HOME/.claude.json" 2>/dev/null)
+    if [ -n "$t" ] && [ "$t" != trusted ]; then
+      warn "$a is not trusted, so workers cannot start in it. claude shows no trust prompt there, because its parent folder $t is trusted."
+    elif [ "$t" != trusted ]; then
+      warn "$a is not trusted; run claude there once and accept the prompt, or workers cannot start in it."
+    fi
+  fi
+  repos="$repos$a$nl"
+done
+
+set -- "$@" --allowedTools \
+  "Bash(command claude --bg *)" "Bash(command claude --resume *)" \
+  "Bash(command claude agents *)" "Bash(command claude stop *)" "Bash(gh pr view *)" \
+  "Bash(command claude logs *)" "Bash(sh $home/orchestrator/watch)" "Skill(bondsmith:check)"
+IFS=$nl
+for a in $repos; do
+  set -- "$@" "Bash(git -C $a remote)" "Bash(git -C $a fetch *)" "Bash(git -C $a worktree *)"
+done
+unset IFS
+
+# claude takes over the screen, which hides the warnings; stop so they are read.
+if [ -n "$warned" ] && [ -t 0 ] && [ -t 2 ]; then
+  printf 'bondsmith: press Enter to start anyway, or Ctrl-C to stop. ' >&2
+  read -r _
+fi
+
+exec claude "$@" -- "/bondsmith:orchestrate $task"

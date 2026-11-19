@@ -1,0 +1,29 @@
+#!/bin/sh
+# Waits until a worker the board says is working is blocked (on a prompt, or
+# idle without a report), prints "<task-id> blocked" and exits. Written by
+# /bondsmith:setup; the orchestrator runs it in the background and runs its
+# every-turn rules when it exits.
+# Usage: sh orchestrator/watch
+cd "$(dirname "$0")/.." || exit 1
+# A claude -p session waits for its background tasks, so a watch would keep it
+# from ever exiting; tests set BONDSMITH_WATCH=off.
+[ "${BONDSMITH_WATCH:-}" = off ] && { echo "bondsmith watch: off (BONDSMITH_WATCH=off)."; exit 3; }
+command -v jq >/dev/null 2>&1 || { echo "bondsmith watch: jq is missing; not watching."; exit 2; }
+
+# Task ids of Live rows whose `waiting on` is worker, one per line.
+waiting() {
+  awk -F '|' '
+    /^## / { live = ($0 == "## Live"); n = 0; next }
+    !live || !/^\|/ || /^\|[ :|-]*$/ { next }
+    { for (i = 2; i < NF; i++) { c = $i; gsub(/^ +| +$/, "", c); v[i] = c } }
+    !n { for (i in v) if (v[i] == "task") t = i; else if (v[i] == "waiting on") w = i; n = 1; next }
+    v[w] == "worker" { print v[t] }' orchestrator/board.md
+}
+
+while :; do
+  ids=$(waiting | jq -R . | jq -sc .)
+  hit=$(command claude agents --json 2>/dev/null |
+    jq -r --argjson ids "$ids" 'first(.[] | select(.state == "blocked" and (.name | IN($ids[]))) | .name) // empty' 2>/dev/null)
+  [ -n "$hit" ] && { echo "$hit blocked"; exit 0; }
+  sleep 30
+done
