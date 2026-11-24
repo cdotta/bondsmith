@@ -24,7 +24,8 @@ Task id: `$ARGUMENTS`. Run in the home repo; all paths below are under its `orch
    Worktree: <worktree path>
 
    Read the brief and the report. The base is the `Base:` line under "Facts and decisions" in the brief.
-   If the report has a PR link, run the step on that PR. If not, cut a detached worktree of your own
+   If the report has a PR link, run the step on that PR; if the PR's `headRefOid` (`gh pr view <link> --json headRefOid`)
+   is not `git -C <worktree path> rev-parse HEAD`, the step did not run as written: say so and stop. If there is no PR link, cut a detached worktree of your own
    (`git -C <worktree path> worktree add --detach <new empty temp dir> HEAD`), run the step there on
    `<base>...HEAD`, and remove it afterwards (`git -C <worktree path> worktree remove --force <that dir>`).
 
