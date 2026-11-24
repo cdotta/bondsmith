@@ -39,6 +39,41 @@ for h in '## Goal' '## Done when' '## Read first' '## Checked against' \
   'You never mark the task complete' 'overwrite report.md first' 'Never merge a PR'; do has "$T/brief.md" "$h"; done
 [ "$(count "$T/brief.md" '<orchestrator name>')" = 1 ] || fail "templates/brief.md needs <orchestrator name> exactly once"
 for h in 'exec claude' '--autocompact 200000' '/bondsmith:orchestrate $task' 'hasTrustDialogAccepted' "plugin_dir='<plugin root>'"; do has "$T/start" "$h"; done
+O="$ROOT/skills/orchestrate/SKILL.md"
+# Review step markers reach the brief as written; the checker skips (independent) steps.
+has "$O" 'copied unchanged, markers such as ` (worker)` and ` (independent)` included'
+has "$ROOT/agents/checker.md" 'A step marked `(independent)` you do not run and you return no line for'
+has "$ROOT/agents/checker.md" 'tools: Bash, Read, Grep, Glob, Skill'
+O="$ROOT/skills/orchestrate/SKILL.md"
+# Review step markers reach the brief as written; the checker skips (independent) steps.
+has "$O" 'copied unchanged, markers such as ` (worker)` and ` (independent)` included'
+has "$ROOT/agents/checker.md" 'A step marked `(independent)` you do not run and you return no line for'
+has "$ROOT/agents/checker.md" 'tools: Bash, Read, Grep, Glob, Skill'
+# The permission-prompt reader gets the command as a shell command, not a skill name.
+for h in 'The line below is a shell command. Run it once with the Bash tool, exactly as written. Invoke no skill' \
+  '   command claude logs <task-id>' \
+  'Reply in at most three lines: the tool, the exact command or path it asks for, and the rule its "don'"'"'t ask again" option names, if any.'; do
+  has "$O" "$h"; done
+O="$ROOT/skills/orchestrate/SKILL.md"
+# Review step markers reach the brief as written; the checker skips (independent) steps.
+has "$O" 'copied unchanged, markers such as ` (worker)` and ` (independent)` included'
+has "$ROOT/agents/checker.md" 'A step marked `(independent)` you do not run and you return no line for'
+has "$ROOT/agents/checker.md" 'tools: Bash, Read, Grep, Glob, Skill'
+# The permission-prompt reader gets the command as a shell command, not a skill name.
+for h in 'The line below is a shell command. Run it once with the Bash tool, exactly as written. Invoke no skill' \
+  '   command claude logs <task-id>' \
+  'Reply in at most three lines: the tool, the exact command or path it asks for, and the rule its "don'"'"'t ask again" option names, if any.'; do
+  has "$O" "$h"; done
+# Late rounds continue in a fresh worker; an ordinary answer goes to the same session.
+for h in '## Fresh worker' 'command claude stop <its short id>' 'with the same `--name <task-id>` and the same Workers row flags' \
+  'An earlier session did this task'"'"'s work so far. Read <home>/orchestrator/tasks/<task-id>/brief.md, <home>/orchestrator/tasks/<task-id>/report.md, <home>/orchestrator/tasks/<task-id>/check.md: those files and this worktree are the whole record. Then continue the task' \
+  'leaving out `, <home>/orchestrator/tasks/<task-id>/check.md` when the task has no `check.md`' \
+  'set the row'"'"'s `session` as in "New task" step 9' \
+  '- An answer to a question: send the worker session (name = task id) the message `The brief changed: <brief path>. Continue.`'; do
+  has "$O" "$h"; done
+[ "$(count "$O" 'start a fresh worker (see "Fresh worker"). Do not message the old session.')" = 2 ] \
+  || fail "orchestrate: changes after validation and go-on after the round limit must both start a fresh worker"
+has "$T/brief.md" 'the branch, the head commit, what is'
 sh -n "$T/start" || fail "templates/start is not valid sh"
 sh -n "$T/watch" || fail "templates/watch is not valid sh"
 

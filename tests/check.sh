@@ -3,6 +3,20 @@
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 
+# The check skill runs each (independent) step in a general-purpose agent beside
+# the checker; no fixture has one, so those runs stay as before.
+C="$ROOT/skills/check/SKILL.md"
+for h in 'In the same turn, so they run in parallel with the checker, spawn one `general-purpose` agent' \
+  'marked ` (independent)`' 'Wait for every result.' \
+  'If the report has a PR link, run the step on that PR;' 'is not `git -C <worktree path> rev-parse HEAD`, the step did not run as written' '--detach' 'worktree remove' \
+  '- Post nothing anywhere' '- Change no file in the task'"'"'s worktree' '- Run no full test suite.' \
+  'Ran as written: yes | no' 'that alone does not make "Ran as written" a no' 'Severities: <the step'"'"'s own scale, highest first>' \
+  '- <severity>: <finding> (<file>:<line>) declared | not declared' \
+  '- pass: <step> (independent)' '- fail: <step> (independent): <reason>' \
+  'did not run it as written' 'a finding of the step'"'"'s top two severities (BLOCKER and MUST-FIX, for example) is `not declared`' \
+  'do not fail it' '## <step> (independent)'; do has "$C" "$h"; done
+awk '/## Notes/ {n=NR} /## <step> \(independent\)/ {i=NR} END {exit !(n && i > n)}' "$C" || fail "check: independent sections must follow the checker's notes"
+
 D="$(mktemp -d)"
 D="$(cd "$D" && pwd -P)"
 trap 'rm -rf "$D"' EXIT

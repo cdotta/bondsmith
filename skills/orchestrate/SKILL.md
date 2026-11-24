@@ -29,7 +29,19 @@ Run the start routine. Then, if `$ARGUMENTS` is not empty, run "New task" with `
    - `needs-user`: set `state` `needs-user`, `waiting on` `user`, and show the user the report's `Question:` line.
    - `working`: set `next` from the report's `Next:` line, and `updated`.
    - Whatever the state: if the report names an ordering or dependency on another task (merge together, wait for another PR), or the user states one, write it in the row's `notes` in a few words. Clear it when it no longer holds.
-2. Run `command claude agents --json`. A session is `blocked` both when it waits on a prompt (`waitingFor` is set) and when it has simply ended its turn (no `waitingFor`), so only rows with `waiting on` `worker` count, after step 1 has processed their reports. For each such row whose session (matched by `name` = task id) has `state` `blocked`: with no `waitingFor`, the worker stopped without reporting. If the row's `next` is not yet `nudged for report`, take the time, set `next` `nudged for report` and `updated`, and send it `Write report.md with your current state, then send the one-line message.` If it already is, set `waiting on` `user`, `next` `claude attach <task-id>`, and `updated`, and tell the user the worker stopped without a report. Then stop there for that row. With `waitingFor` set, the worker waits on a prompt: set `waiting on` `user`, `next` `claude attach <task-id>`, and `updated`, and tell the user to run `claude attach <task-id>` to answer it. If the session's `waitingFor` is `permission prompt`, first spawn a subagent on model `haiku` with this prompt and nothing else: `Run command claude logs <task-id> once. It prints a terminal screen with escape codes; near its end is a permission prompt. Reply in at most three lines: the tool, the exact command or path it asks for, and the rule its "don't ask again" option names, if any. Run nothing else.` Pass its answer on to the user, and if it names a rule, say that adding it to `allowed tools` in `orchestrator/config.md` stops later workers asking. When a row with that `next` is no longer blocked, set `waiting on` `worker` and `next` `wait for report`.
+2. Run `command claude agents --json`. A session is `blocked` both when it waits on a prompt (`waitingFor` is set) and when it has simply ended its turn (no `waitingFor`), so only rows with `waiting on` `worker` count, after step 1 has processed their reports. For each such row whose session (matched by `name` = task id) has `state` `blocked`: with no `waitingFor`, the worker stopped without reporting. If the row's `next` is not yet `nudged for report`, take the time, set `next` `nudged for report` and `updated`, and send it `Write report.md with your current state, then send the one-line message.` If it already is, set `waiting on` `user`, `next` `claude attach <task-id>`, and `updated`, and tell the user the worker stopped without a report. Then stop there for that row. With `waitingFor` set, the worker waits on a prompt: set `waiting on` `user`, `next` `claude attach <task-id>`, and `updated`, and tell the user to run `claude attach <task-id>` to answer it. If the session's `waitingFor` is `permission prompt`, first spawn a subagent on model `haiku` with this prompt and nothing else, the task id filled in:
+
+   ````text
+   The line below is a shell command. Run it once with the Bash tool, exactly as written. Invoke no skill, and run nothing else.
+
+   ```
+   command claude logs <task-id>
+   ```
+
+   It prints a terminal screen with escape codes; near its end is a permission prompt. Reply in at most three lines: the tool, the exact command or path it asks for, and the rule its "don't ask again" option names, if any.
+   ````
+
+   Pass its answer on to the user, and if it names a rule, say that adding it to `allowed tools` in `orchestrator/config.md` stops later workers asking. When a row with that `next` is no longer blocked, set `waiting on` `worker` and `next` `wait for report`.
 3. For each `validated` row whose report has a PR link, run `gh pr view <link> --json state`. If the state is `MERGED`, close the task (see "Closing").
 4. A message "<task-id> report updated" from a worker means: run step 1 now.
 5. Update the board before you reply to the user. Set `updated` on every row you change. When the change goes with starting, resuming or messaging a worker, take the time before you start, resume or message it, so a report it writes afterwards is newer.
@@ -45,7 +57,7 @@ Run the start routine. Then, if `$ARGUMENTS` is not empty, run "New task" with `
 4. Read `${CLAUDE_PLUGIN_ROOT}/templates/brief.md` and write `orchestrator/tasks/<task-id>/brief.md` from it:
    - Fill every section. Each "Done when" item names the command or evidence that proves it.
    - Read first: `<home>/<file>: <why>` for each picked catalogue row; leave the section empty if none.
-   - Checked against: `<home>/<file>` for each picked row with `validate` = `yes`, then `- Review steps: <the repo's review steps>`.
+   - Checked against: `<home>/<file>` for each picked row with `validate` = `yes`, then `- Review steps: <the repo's review steps>`, copied unchanged, markers such as ` (worker)` and ` (independent)` included.
    - Facts and decisions: start with the line `Base: <base>`, the repo's `base`.
    - In Worker rules, replace `<orchestrator name>` with the configured name and `<task-id>` with the task id.
    - Remove the `<!-- -->` comment lines.
@@ -65,11 +77,27 @@ Run the start routine. Then, if `$ARGUMENTS` is not empty, run "New task" with `
 
 ## Answer from the user
 
-When the user answers a `needs-user` task's question, or says to go on after the check round limit: write the answer into the brief under "Facts and decisions", take the time, set `state` `running`, `waiting on` `worker`, `next` `continue after answer`, `updated` that time, then send the worker session (name = task id) the message `The brief changed: <brief path>. Continue.` If it is not live, resume it as in start routine step 5 with that message. Leave `round` unchanged.
+When the user answers a `needs-user` task's question, or says to go on after the check round limit: write the answer into the brief under "Facts and decisions", take the time, set `state` `running`, `waiting on` `worker`, `next` `continue after answer`, `updated` that time. Leave `round` unchanged. Then:
+
+- An answer to a question: send the worker session (name = task id) the message `The brief changed: <brief path>. Continue.` If it is not live, resume it as in start routine step 5 with that message.
+- Go on after the check round limit: start a fresh worker (see "Fresh worker"). Do not message the old session.
 
 ## Changes after validation
 
-If the user asks for changes to a `validated` task: append them to the brief under "Done when", set `round` `0`, `state` `running`, `waiting on` `worker`, and send the worker session (name = task id) the message `The brief changed: <brief path>. Do the new items, then report again.` If it is not live, resume it as in start routine step 5 with that message.
+If the user asks for changes to a `validated` task: append them to the brief under "Done when", set `round` `0`, `state` `running`, `waiting on` `worker`, `next` `do the new items`, then start a fresh worker (see "Fresh worker"). Do not message the old session.
+
+## Fresh worker
+
+A task that goes on past validation or past the check round limit continues in a new worker session, so it does not carry every earlier round in its context. The old session is idle at both points, so nothing is interrupted, and uncommitted work stays in the worktree.
+
+1. If `command claude agents --json` lists a session whose `name` is the task id, stop it: `command claude stop <its short id>`.
+2. Take the time. Start the worker as in "New task" step 7, from the row's worktree, with the same `--name <task-id>` and the same Workers row flags, but with this prompt, leaving out `, <home>/orchestrator/tasks/<task-id>/check.md` when the task has no `check.md`:
+
+   ```text
+   An earlier session did this task's work so far. Read <home>/orchestrator/tasks/<task-id>/brief.md, <home>/orchestrator/tasks/<task-id>/report.md, <home>/orchestrator/tasks/<task-id>/check.md: those files and this worktree are the whole record. Then continue the task as brief.md says. Your report.md is <home>/orchestrator/tasks/<task-id>/report.md.
+   ```
+
+3. If it fails to start, keep the state, set `waiting on` `user` and `next` `resume <task-id>`, and tell the user what failed. Otherwise set the row's `session` as in "New task" step 9, and `updated` the time from step 2.
 
 ## Closing
 

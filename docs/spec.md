@@ -71,7 +71,7 @@ First line `format: 1`. Three tables.
 | owns | One phrase, used to route a task to a repo |
 | base | Ref a worktree is cut from, e.g. `origin/main` |
 | worktree dir | Where worktrees go inside the clone, e.g. `.claude/worktrees` |
-| review steps | Skills or commands that must run on the final diff before a PR, comma-separated. A step marked ` (worker)` is one the checker cannot run, such as a review that starts its own subagents (a subagent cannot start one); the checker accepts the worker's run if the report names the final commit as where it last ran |
+| review steps | Skills or commands that must run on the final diff before a PR, comma-separated. A step marked ` (worker)` is one the checker cannot run, such as a review that starts its own subagents (a subagent cannot start one); the checker accepts the worker's run if the report names the final commit as where it last ran. A step marked ` (independent)` the checker skips; each check round runs it in a `general-purpose` agent beside the checker instead (section 7) |
 
 **Workers** (one row of settings)
 
@@ -238,12 +238,12 @@ When a report says `ready-for-check` but itself lists a `not met` item or work i
 
 1. Verifies each "Done when" item itself: runs the named command in the worktree or reads the named evidence. A report line saying "met" is not evidence. With a PR that has CI checks, a test suite's evidence is CI on the worktree's `HEAD` (`gh pr view --json headRefOid,statusCheckRollup`, already allowed); the checker runs the suite locally only without a PR, since a worktree often has no environment of its own.
    When it finds a failure, it searches the whole diff for every other instance of the same kind and lists them all, so a later round does not find what this one could have.
-2. Runs every review step from the brief again on the final diff (`git -C <worktree> diff <base>...HEAD`, or the PR). The base is the brief's `Base:` line; without one, every review step fails as could not run.
+2. Runs every review step from the brief again on the final diff (`git -C <worktree> diff <base>...HEAD`, or the PR). The base is the brief's `Base:` line; without one, every review step fails as could not run. It skips a step marked `(independent)`: for each such step the check round spawns, in parallel with the checker, one `general-purpose` agent, which has the Agent tool, runs the step on the PR (or in a detached worktree of its own), posts and changes nothing, and returns its findings by severity and which the PR body declares. The step fails when it did not run as written or when a finding of the step's top two severities is undeclared.
 3. Checks the output against each "Checked against" file.
 4. Checks the diff against "Ask first". Work the brief says needs the user's yes, done without a yes recorded under "Facts and decisions", is an `ask-first` line.
 5. Returns one line per item, `pass` or `fail` with the reason and location, then a single overall verdict. Ten lines at most beyond the item list.
 
-The orchestrator saves the result as `check.md`: the verdict, the round, the item lines, then the checker's notes under `## Notes`. Then:
+The orchestrator saves the result as `check.md`: the verdict, the round, the item lines, a line per independent step, then the checker's notes under `## Notes`, then a section per independent step with its agent's findings. Then:
 
 - **All pass:** set `validated`, tell the user in two lines with the PR link.
 Every check round sets `round` to its own number.
@@ -251,6 +251,8 @@ Every check round sets `round` to its own number.
 - **Any fail:** set `running`, send the worker the path to `check.md`. If the worker session has stopped, `claude --resume <session> --bg "<same message>"`.
 - **Any `ask-first` line:** set `needs-user` at once, whatever the round, and ask the user whether to keep that change.
 - **`round` reaches max check rounds:** set `needs-user` and show the user the failing items.
+
+When the user asks for changes to a `validated` task, or says to go on after max check rounds, the orchestrator stops the old worker session and starts a fresh one in the same worktree with the same name and the current Workers settings, and writes its session id on the board. A session that carried the build, every round and later changes can fill its context window, and the orchestrator cannot see a worker's context use, so the rule is by event. The fresh worker reads `brief.md`, `report.md`, `check.md` and the worktree, which is why the report must name the branch, the head commit, what is uncommitted and what was rejected. An answer to an ordinary `needs-user` question still goes to the same session.
 
 `validated` → `closed` when `gh pr view <pr> --json state` shows merged, checked every turn, or when the user says so. At `closed` the orchestrator asks before stopping the session and removing the worktree, in one question for all tasks closed that turn.
 
@@ -320,7 +322,7 @@ Users install it from the repo's own marketplace (`/plugin install bondsmith --m
 | Case | What happens |
 |---|---|
 | Worker session stopped (idle timeout, machine restart) | Found at the turn-start or daily check; resumed with `--resume <session> --bg` |
-| Worker blocked on a permission prompt | `claude agents --json` shows its state `blocked` with `waitingFor` set; a session that only ended its turn is also `blocked`, with no `waitingFor`, and gets a nudge to write its report. Only rows `waiting on: worker` count. `orchestrator/watch`, run in the background by the orchestrator, polls it every 30 seconds and exits when a worker the board shows `waiting on: worker` is blocked, which wakes the orchestrator without waiting for the user's next turn; every turn also checks. The row gets `waiting on: user`, `next: claude attach <task-id>`, and the user is told. For a permission prompt, a `haiku` subagent reads `claude logs <task-id>` and names the tool, the command and the rule a "don't ask again" answer would add, so the user can put it in `allowed tools` |
+| Worker blocked on a permission prompt | `claude agents --json` shows its state `blocked` with `waitingFor` set; a session that only ended its turn is also `blocked`, with no `waitingFor`, and gets a nudge to write its report. Only rows `waiting on: worker` count. `orchestrator/watch`, run in the background by the orchestrator, polls it every 30 seconds and exits when a worker the board shows `waiting on: worker` is blocked, which wakes the orchestrator without waiting for the user's next turn; every turn also checks. The row gets `waiting on: user`, `next: claude attach <task-id>`, and the user is told. For a permission prompt, a `haiku` subagent runs `command claude logs <task-id>` with Bash (its prompt gives the command in a code block and says to invoke no skill) and names the tool, the command and the rule a "don't ask again" answer would add, so the user can put it in `allowed tools` |
 | Worker's nudge never arrives | `report.md` is newer than the board row; picked up at the next turn start |
 | Worker reports while no orchestrator runs | Same: the report file waits |
 | Check fails | Section 7; back to the same worker, to the user after max rounds |

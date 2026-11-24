@@ -4,7 +4,7 @@ format: 1
 
 ## Repos
 
-The repositories workers run in. `path` is relative to this repo; `.` is this repo itself, so the first task needs no other repo. Add a row per repo, for example `| api | ../api | backend API | origin/main | .claude/worktrees | none |`. `review steps`: skills or commands that must run on the final diff before a PR, comma-separated, or `none`. Mark a step the checker cannot run, such as one that starts its own subagents, with ` (worker)`, for example `pr-review (worker)`: the checker then accepts the worker's run on the final commit instead of running it again.
+The repositories workers run in. `path` is relative to this repo; `.` is this repo itself, so the first task needs no other repo. Add a row per repo, for example `| api | ../api | backend API | origin/main | .claude/worktrees | none |`. `review steps`: skills or commands that must run on the final diff before a PR, comma-separated, or `none`. Mark a step the checker cannot run, such as one that starts its own subagents, with ` (worker)`, for example `pr-review (worker)`: the checker then accepts the worker's run on the final commit instead of running it again. Mark a step that must still run independently at check time with ` (independent)`, for example `pr-review (independent)`: each check round runs it in a full-tool agent alongside the checker, on the PR or a worktree of its own, and an unfixed finding of the step's top two severities that the PR body does not declare fails the check. A step carries one marker or none.
 
 | name | path | owns | base | worktree dir | review steps |
 |---|---|---|---|---|---|
