@@ -45,7 +45,7 @@ Run the start routine. Then, if `$ARGUMENTS` is not empty, run "New task" with `
 4. Read `${CLAUDE_PLUGIN_ROOT}/templates/brief.md` and write `orchestrator/tasks/<task-id>/brief.md` from it:
    - Fill every section. Each "Done when" item names the command or evidence that proves it.
    - Read first: `<home>/<file>: <why>` for each picked catalogue row; leave the section empty if none.
-   - Checked against: `<home>/<file>` for each picked row with `validate` = `yes`, then `- Review steps: <the repo's review steps>`.
+   - Checked against: `<home>/<file>` for each picked row with `validate` = `yes`, then `- Review steps: <the repo's review steps>`, copied unchanged, markers such as ` (worker)` and ` (independent)` included.
    - Facts and decisions: start with the line `Base: <base>`, the repo's `base`.
    - In Worker rules, replace `<orchestrator name>` with the configured name and `<task-id>` with the task id.
    - Remove the `<!-- -->` comment lines.

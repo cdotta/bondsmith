@@ -71,7 +71,7 @@ First line `format: 1`. Three tables.
 | owns | One phrase, used to route a task to a repo |
 | base | Ref a worktree is cut from, e.g. `origin/main` |
 | worktree dir | Where worktrees go inside the clone, e.g. `.claude/worktrees` |
-| review steps | Skills or commands that must run on the final diff before a PR, comma-separated. A step marked ` (worker)` is one the checker cannot run, such as a review that starts its own subagents (a subagent cannot start one); the checker accepts the worker's run if the report names the final commit as where it last ran |
+| review steps | Skills or commands that must run on the final diff before a PR, comma-separated. A step marked ` (worker)` is one the checker cannot run, such as a review that starts its own subagents (a subagent cannot start one); the checker accepts the worker's run if the report names the final commit as where it last ran. A step marked ` (independent)` the checker skips; each check round runs it in a `general-purpose` agent beside the checker instead (section 7) |
 
 **Workers** (one row of settings)
 
@@ -238,12 +238,12 @@ When a report says `ready-for-check` but itself lists a `not met` item or work i
 
 1. Verifies each "Done when" item itself: runs the named command in the worktree or reads the named evidence. A report line saying "met" is not evidence. With a PR that has CI checks, a test suite's evidence is CI on the worktree's `HEAD` (`gh pr view --json headRefOid,statusCheckRollup`, already allowed); the checker runs the suite locally only without a PR, since a worktree often has no environment of its own.
    When it finds a failure, it searches the whole diff for every other instance of the same kind and lists them all, so a later round does not find what this one could have.
-2. Runs every review step from the brief again on the final diff (`git -C <worktree> diff <base>...HEAD`, or the PR). The base is the brief's `Base:` line; without one, every review step fails as could not run.
+2. Runs every review step from the brief again on the final diff (`git -C <worktree> diff <base>...HEAD`, or the PR). The base is the brief's `Base:` line; without one, every review step fails as could not run. It skips a step marked `(independent)`: for each such step the check round spawns, in parallel with the checker, one `general-purpose` agent, which has the Agent tool, runs the step on the PR (or in a detached worktree of its own), posts and changes nothing, and returns its findings by severity and which the PR body declares. The step fails when it did not run as written or when a finding of the step's top two severities is undeclared.
 3. Checks the output against each "Checked against" file.
 4. Checks the diff against "Ask first". Work the brief says needs the user's yes, done without a yes recorded under "Facts and decisions", is an `ask-first` line.
 5. Returns one line per item, `pass` or `fail` with the reason and location, then a single overall verdict. Ten lines at most beyond the item list.
 
-The orchestrator saves the result as `check.md`: the verdict, the round, the item lines, then the checker's notes under `## Notes`. Then:
+The orchestrator saves the result as `check.md`: the verdict, the round, the item lines, a line per independent step, then the checker's notes under `## Notes`, then a section per independent step with its agent's findings. Then:
 
 - **All pass:** set `validated`, tell the user in two lines with the PR link.
 Every check round sets `round` to its own number.

@@ -53,7 +53,7 @@ To try a clone without installing, start Claude Code with `claude --plugin-dir <
 
    The config's only Repos row is the home repo itself, so this works before you edit anything.
 3. To work in other repos, edit `orchestrator/config.md` and restart the orchestrator. Config edits apply at the next start.
-   - **Repos:** one row per repo: its path from the home repo, what it owns (used to route a task), the base branch, and the review steps that must run before a PR. A review step the checker cannot run itself, such as one that starts its own subagents, gets ` (worker)` after its name, and the worker's run on the final commit counts.
+   - **Repos:** one row per repo: its path from the home repo, what it owns (used to route a task), the base branch, and the review steps that must run before a PR. A review step the checker cannot run itself, such as one that starts its own subagents, gets ` (worker)` after its name, and the worker's run on the final commit counts. Mark it ` (independent)` instead to have each check round run it again in a full-tool agent beside the checker: the step fails on an unfixed finding of its top two severities (BLOCKER and MUST-FIX, for example) that the PR body does not declare.
    - **Workers:** models, permission mode, and `allowed tools`. Add the test, build and lint commands your workers run, for example `Bash(npm test *)`, or each one stops the worker on a permission prompt.
    - **Catalogue:** files in the home repo that a worker should read for some kinds of task, and whether the checker must check the output against them.
 

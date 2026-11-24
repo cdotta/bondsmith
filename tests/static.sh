@@ -39,6 +39,11 @@ for h in '## Goal' '## Done when' '## Read first' '## Checked against' \
   'You never mark the task complete' 'overwrite report.md first' 'Never merge a PR'; do has "$T/brief.md" "$h"; done
 [ "$(count "$T/brief.md" '<orchestrator name>')" = 1 ] || fail "templates/brief.md needs <orchestrator name> exactly once"
 for h in 'exec claude' '--autocompact 200000' '/bondsmith:orchestrate $task' 'hasTrustDialogAccepted' "plugin_dir='<plugin root>'"; do has "$T/start" "$h"; done
+O="$ROOT/skills/orchestrate/SKILL.md"
+# Review step markers reach the brief as written; the checker skips (independent) steps.
+has "$O" 'copied unchanged, markers such as ` (worker)` and ` (independent)` included'
+has "$ROOT/agents/checker.md" 'A step marked `(independent)` you do not run and you return no line for'
+has "$ROOT/agents/checker.md" 'tools: Bash, Read, Grep, Glob, Skill'
 sh -n "$T/start" || fail "templates/start is not valid sh"
 sh -n "$T/watch" || fail "templates/watch is not valid sh"
 

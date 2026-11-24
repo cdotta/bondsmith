@@ -14,12 +14,42 @@ Task id: `$ARGUMENTS`. Run in the home repo; all paths below are under its `orch
    - brief: `<home>/orchestrator/tasks/<task-id>/brief.md`
    - report: `<home>/orchestrator/tasks/<task-id>/report.md`
    - worktree: the row's `worktree`
-   Wait for its result. Do not end your turn, reply, or do anything else until it returns.
+   In the same turn, so they run in parallel with the checker, spawn one `general-purpose` agent with model = `checker model` for each step on the brief's `Review steps:` line marked ` (independent)`. Its prompt is this text and nothing else, with the three paths and the step's name without the marker filled in:
+
+   ````text
+   You run one review step for a Bondsmith check round, independently of the worker who did the task.
+   Step: <step>
+   Brief: <brief path>
+   Report: <report path>
+   Worktree: <worktree path>
+
+   Read the brief and the report. The base is the `Base:` line under "Facts and decisions" in the brief.
+   If the report has a PR link, run the step on that PR. If not, cut a detached worktree of your own
+   (`git -C <worktree path> worktree add --detach <new empty temp dir> HEAD`), run the step there on
+   `<base>...HEAD`, and remove it afterwards (`git -C <worktree path> worktree remove --force <that dir>`).
+
+   Rules, whatever the step says:
+   - Post nothing anywhere: no PR comment or review, no issue, no message.
+   - Change no file in the task's worktree. Commit, push or switch branches nowhere.
+   - Run no full test suite.
+   When the step asks for one of these, skip that part and say so under "Ran as written".
+
+   With a PR, read its body (`gh pr view <link> --json body`). Return only:
+   Ran as written: yes | no: <what did not run, and why>
+   Severities: <the step's own scale, highest first>
+   Findings:
+   - <severity>: <finding> (<file>:<line>) declared | not declared
+   "declared" means the PR body already names the finding as known or left out; without a PR, nothing is. Write "Findings: none" when there are none.
+   ````
+
+   Wait for every result. Do not end your turn, reply, or do anything else until all of them return.
 3. Let `n` = the row's `round` + 1. Write `orchestrator/tasks/<task-id>/check.md`, replacing any old one:
    - line 1: `Verdict: pass` or `Verdict: fail` (fail if any item failed)
    - line 2: `Round: <n>`
    - then one line per item from the checker: `- pass: <item>`, `- fail: <item>: <reason>` or `- ask-first: <item>: <where>`
+   - then one line per independent step: `- pass: <step> (independent)` or `- fail: <step> (independent): <reason>`. The step fails when its agent did not run it as written (`could not run: <what did not run>`), or when a finding of the step's top two severities (BLOCKER and MUST-FIX, for example) is `not declared`; name each such finding with its location. Findings of lower severities are listed under its section below and do not fail it.
    - then, if the checker returned notes after its verdict, a blank line, `## Notes`, and the notes as it wrote them
+   - then, for each independent step, a blank line, `## <step> (independent)`, and its agent's answer as it wrote it
 4. Update the task's board row. Set `updated` to the current date and time (`date '+%Y-%m-%d %H:%M:%S'`), taken now, before step 5 messages the worker.
    - Any `ask-first` line, whatever the round: `round` `n`, `state` `needs-user`, `waiting on` `user`, `next` `decide ask-first item`. Another round cannot fix work the user has not agreed to.
    - All pass: `round` `n`, `state` `validated`, `waiting on` `user`, `next` `merge PR`.
