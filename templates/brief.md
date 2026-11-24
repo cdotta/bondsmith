@@ -41,7 +41,6 @@ Base: <base from the Repos row>
   Fix nothing else.
 - Stop only for what is under "Ask first" or a decision only the user can make.
   Then report "needs-user" with the decision, the options and your pick.
-
 - report.md must let a successor continue without this session, which a later
   round may hand to a fresh worker: the branch, the head commit, what is
   uncommitted in the worktree, and what was tried and rejected.
