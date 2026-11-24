@@ -10,7 +10,7 @@ for h in 'In the same turn, so they run in parallel with the checker, spawn one 
   'marked ` (independent)`' 'Wait for every result.' \
   'If the report has a PR link, run the step on that PR.' '--detach' 'worktree remove' \
   '- Post nothing anywhere' '- Change no file in the task'"'"'s worktree' '- Run no full test suite.' \
-  'Ran as written: yes | no' 'Severities: <the step'"'"'s own scale, highest first>' \
+  'Ran as written: yes | no' 'that alone does not make "Ran as written" a no' 'Severities: <the step'"'"'s own scale, highest first>' \
   '- <severity>: <finding> (<file>:<line>) declared | not declared' \
   '- pass: <step> (independent)' '- fail: <step> (independent): <reason>' \
   'did not run it as written' 'a finding of the step'"'"'s top two severities (BLOCKER and MUST-FIX, for example) is `not declared`' \

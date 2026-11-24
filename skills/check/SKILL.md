@@ -32,10 +32,11 @@ Task id: `$ARGUMENTS`. Run in the home repo; all paths below are under its `orch
    - Post nothing anywhere: no PR comment or review, no issue, no message.
    - Change no file in the task's worktree. Commit, push or switch branches nowhere.
    - Run no full test suite.
-   When the step asks for one of these, skip that part and say so under "Ran as written".
+   When the step asks for one of these, skip that part and name it under "Skipped by the rules"; that alone does not make "Ran as written" a no.
 
    With a PR, read its body (`gh pr view <link> --json body`). Return only:
    Ran as written: yes | no: <what did not run, and why>
+   Skipped by the rules: <parts, or none>
    Severities: <the step's own scale, highest first>
    Findings:
    - <severity>: <finding> (<file>:<line>) declared | not declared
