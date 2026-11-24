@@ -42,12 +42,18 @@ Base: <base from the Repos row>
 - Stop only for what is under "Ask first" or a decision only the user can make.
   Then report "needs-user" with the decision, the options and your pick.
 
+- report.md must let a successor continue without this session, which a later
+  round may hand to a fresh worker: the branch, the head commit, what is
+  uncommitted in the worktree, and what was tried and rejected.
+
 report.md, always the whole current picture, never a log:
 
 ```markdown
 Task: <task-id>
 State: working | ready-for-check | needs-user
 Did: <two or three lines>
+Branch: <branch> at <head commit>; uncommitted: <paths, or none>
+Rejected: <what was tried and rejected, and why, or none>
 Evidence: <PR link, commits, test command with its result line>
 Reviews: <step>: <n> findings, fixed in <commits>; last run on <commit>      # one line per review step
 Done when: <each check>: met | not met, <evidence>

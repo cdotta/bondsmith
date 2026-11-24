@@ -77,11 +77,27 @@ Run the start routine. Then, if `$ARGUMENTS` is not empty, run "New task" with `
 
 ## Answer from the user
 
-When the user answers a `needs-user` task's question, or says to go on after the check round limit: write the answer into the brief under "Facts and decisions", take the time, set `state` `running`, `waiting on` `worker`, `next` `continue after answer`, `updated` that time, then send the worker session (name = task id) the message `The brief changed: <brief path>. Continue.` If it is not live, resume it as in start routine step 5 with that message. Leave `round` unchanged.
+When the user answers a `needs-user` task's question, or says to go on after the check round limit: write the answer into the brief under "Facts and decisions", take the time, set `state` `running`, `waiting on` `worker`, `next` `continue after answer`, `updated` that time. Leave `round` unchanged. Then:
+
+- An answer to a question: send the worker session (name = task id) the message `The brief changed: <brief path>. Continue.` If it is not live, resume it as in start routine step 5 with that message.
+- Go on after the check round limit: start a fresh worker (see "Fresh worker"). Do not message the old session.
 
 ## Changes after validation
 
-If the user asks for changes to a `validated` task: append them to the brief under "Done when", set `round` `0`, `state` `running`, `waiting on` `worker`, and send the worker session (name = task id) the message `The brief changed: <brief path>. Do the new items, then report again.` If it is not live, resume it as in start routine step 5 with that message.
+If the user asks for changes to a `validated` task: append them to the brief under "Done when", set `round` `0`, `state` `running`, `waiting on` `worker`, `next` `do the new items`, then start a fresh worker (see "Fresh worker"). Do not message the old session.
+
+## Fresh worker
+
+A task that goes on past validation or past the check round limit continues in a new worker session, so it does not carry every earlier round in its context. The old session is idle at both points, so nothing is interrupted, and uncommitted work stays in the worktree.
+
+1. If `command claude agents --json` lists a session whose `name` is the task id, stop it: `command claude stop <its short id>`.
+2. Take the time. Start the worker as in "New task" step 7, from the row's worktree, with the same `--name <task-id>` and the same Workers row flags, but with this prompt, leaving out `, <home>/orchestrator/tasks/<task-id>/check.md` when the task has no `check.md`:
+
+   ```text
+   An earlier session did this task's work so far. Read <home>/orchestrator/tasks/<task-id>/brief.md, <home>/orchestrator/tasks/<task-id>/report.md, <home>/orchestrator/tasks/<task-id>/check.md: those files and this worktree are the whole record. Then continue the task as brief.md says. Your report.md is <home>/orchestrator/tasks/<task-id>/report.md.
+   ```
+
+3. If it fails to start, keep the state, set `waiting on` `user` and `next` `resume <task-id>`, and tell the user what failed. Otherwise set the row's `session` as in "New task" step 9, and `updated` the time from step 2.
 
 ## Closing
 

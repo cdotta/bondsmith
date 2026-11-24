@@ -252,6 +252,8 @@ Every check round sets `round` to its own number.
 - **Any `ask-first` line:** set `needs-user` at once, whatever the round, and ask the user whether to keep that change.
 - **`round` reaches max check rounds:** set `needs-user` and show the user the failing items.
 
+When the user asks for changes to a `validated` task, or says to go on after max check rounds, the orchestrator stops the old worker session and starts a fresh one in the same worktree with the same name and the current Workers settings, and writes its session id on the board. A session that carried the build, every round and later changes can fill its context window, and the orchestrator cannot see a worker's context use, so the rule is by event. The fresh worker reads `brief.md`, `report.md`, `check.md` and the worktree, which is why the report must name the branch, the head commit, what is uncommitted and what was rejected. An answer to an ordinary `needs-user` question still goes to the same session.
+
 `validated` → `closed` when `gh pr view <pr> --json state` shows merged, checked every turn, or when the user says so. At `closed` the orchestrator asks before stopping the session and removing the worktree, in one question for all tasks closed that turn.
 
 ## 8. Keeping the orchestrator small, and the daily restart
