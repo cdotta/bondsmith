@@ -44,6 +44,16 @@ O="$ROOT/skills/orchestrate/SKILL.md"
 has "$O" 'copied unchanged, markers such as ` (worker)` and ` (independent)` included'
 has "$ROOT/agents/checker.md" 'A step marked `(independent)` you do not run and you return no line for'
 has "$ROOT/agents/checker.md" 'tools: Bash, Read, Grep, Glob, Skill'
+O="$ROOT/skills/orchestrate/SKILL.md"
+# Review step markers reach the brief as written; the checker skips (independent) steps.
+has "$O" 'copied unchanged, markers such as ` (worker)` and ` (independent)` included'
+has "$ROOT/agents/checker.md" 'A step marked `(independent)` you do not run and you return no line for'
+has "$ROOT/agents/checker.md" 'tools: Bash, Read, Grep, Glob, Skill'
+# The permission-prompt reader gets the command as a shell command, not a skill name.
+for h in 'The line below is a shell command. Run it once with the Bash tool, exactly as written. Invoke no skill' \
+  '   command claude logs <task-id>' \
+  'Reply in at most three lines: the tool, the exact command or path it asks for, and the rule its "don'"'"'t ask again" option names, if any.'; do
+  has "$O" "$h"; done
 sh -n "$T/start" || fail "templates/start is not valid sh"
 sh -n "$T/watch" || fail "templates/watch is not valid sh"
 
